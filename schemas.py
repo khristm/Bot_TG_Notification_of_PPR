@@ -12,3 +12,5 @@ class TaskSchema(BaseModel):
     number:int
     workers:str
     type:str
+
+
