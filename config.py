@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     """Класс для объекта конфигурации,базовую директорию создаем после чтение .енв"""
     db_path: Path
     token_bot: str
+    api_key: str
     example_table: AnyUrl
     base_dir: Path|None = BASE_DIR
     model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
