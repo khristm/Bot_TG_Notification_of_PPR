@@ -47,7 +47,7 @@ class ModifyUrl:
 
 class RequestToGoogle:
     """Отдельный класс для запросов к гугл"""
-    def __init__(self, url_user:str, session_obj:aiohttp.ClientSession,sheet_id:str|None):
+    def __init__(self, url_user:str|None, session_obj:aiohttp.ClientSession,sheet_id:str|None):
         self.url_user = url_user
         self.session = session_obj
         self.sheet_id = sheet_id
@@ -78,29 +78,35 @@ class RequestToGoogle:
             print(f"Ошибка сетевого запроса: {e}")
             return []
 
+async def test(user_sheet_url):
+    """Имитация логики загрузки данных с гугл таблицы"""
+    async with aiohttp.ClientSession() as session:
+        url=ModifyUrl(user_sheet_url)
+        if url.errors:
+            #битая ссылка
+            print("Я вернул None")
+            return None
+        elif url.url_with_gid is None:
+            #gid не было в ссылке
+            request = RequestToGoogle(url_user=url.url_with_gid, session_obj=session,sheet_id=url.id_sheet)
+            gid_list = await request.get_gid()
+            url.create_url_with_gid(gid_list[1]['gid'])###в реальном приложения конкретный лист выберет пользователь,
+            # здесь выберу я, потому что знаю что в списке будет лист с таким индексом
+        #выше данные полготовили теперь просто запрос на получение cvs
+        request=RequestToGoogle(url_user=url.url_with_gid, session_obj=session,sheet_id=url.id_sheet)
+        result = await request.get_cvs()
+        #здесь будет функция обработки cvs
+        print(result)
+        return result
+
+
+
+
+
 if __name__ == '__main__':
-    async def main():
-        gid_list=[]
-        async with aiohttp.ClientSession() as session:
-            user_url = "https://docs.google.com/spreadsheets/d/1LYEW_Ma5dUwfwhqN6lcT6WAd1yF6spGa9vp1qYAb-pQ/edit?usp=drivesdk"
-            modify_url = ModifyUrl(url_user=user_url)
-            if modify_url.url_with_gid is not None:
-                print(modify_url.url_with_gid)
-                result = await RequestToGoogle(url_user=modify_url.url_with_gid,session_obj=session,sheet_id=modify_url.id_sheet).get_cvs()
-                print(result)
-            elif modify_url.errors == False and modify_url.url_with_gid is None:
-                print("Запущу скрипт на получение gid")
-                gid_list = await RequestToGoogle(url_user=user_url, session_obj=session,sheet_id=modify_url.id_sheet).get_gid()
-                print(gid_list)
-            else:
-                print("Тут я скажу юзеру дай нормальную ссылку")
-            if gid_list:
-                modify_url.create_url_with_gid(gid=gid_list[1]["gid"])
-                if modify_url.url_with_gid is not None:
-                    print(modify_url.url_with_gid)
-                    result = await RequestToGoogle(url_user=modify_url.url_with_gid, session_obj=session,
-                                                   sheet_id=modify_url.id_sheet).get_cvs()
-                    print(result)
-
-
-    asyncio.run(main())
+    true_url_with_gid="https://docs.google.com/spreadsheets/d/1LYEW_Ma5dUwfwhqN6lcT6WAd1yF6spGa9vp1qYAb-pQ/edit?gid=1725907990#gid=1725907990"
+    url_none_gid="https://docs.google.com/spreadsheets/d/1LYEW_Ma5dUwfwhqN6lcT6WAd1yF6spGa9vp1qYAb-pQ/edit?usp=drivesdk"
+    false_url="https://abracydabra.ru/bullsheet"
+    asyncio.run(test(true_url_with_gid))
+    asyncio.run(test(url_none_gid))
+    asyncio.run(test(false_url))
