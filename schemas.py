@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 class UserSchema(BaseModel):
     tg_id: str
@@ -8,7 +9,7 @@ class UserSchema(BaseModel):
 class TaskSchema(BaseModel):
     adress:str
     month:str
-    date_time:str
+    date_time:datetime
     number:int
     workers:str
     type:str

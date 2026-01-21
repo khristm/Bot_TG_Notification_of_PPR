@@ -7,6 +7,8 @@ from io import BytesIO
 import pandas
 from datetime import datetime, timedelta
 import calendar
+from database.crud import create_schedule_from_list
+from database.database import async_session
 
 class ModifyUrl:
     """Класс для работы со ссылкой абонента"""
@@ -90,12 +92,6 @@ class ReadCVSToObject:
         self.__read_cvs(data_cvs)
         self.__convert_dict_to_object()
     def __read_cvs(self,data_cvs):
-        # try:
-        #     data=data_cvs.decode("utf-8")
-        # except Exception as e:
-        #     print(f"Не смогли декодировать cvs с ошибкой: {e}")
-        #     self.errors=True
-        #     return []
         try:
            data=pandas.read_csv(BytesIO(data_cvs))
            data_dict=data.to_dict(orient="records")
@@ -154,6 +150,10 @@ class ReadCVSToObject:
             print(f"Даты ППР не в указанном месяце, ошибка: {e}")
             self.errors = True
             return None
+        #создаем объекты и добавляем в список
+        for el in self.list_dicts:
+            obj=TaskSchema(**el)
+            self.list_object.append(obj)
         return self
 
 
@@ -179,22 +179,27 @@ async def test(user_sheet_url,session):
     request=RequestToGoogle(url_user=url.url_with_gid, session_obj=session,sheet_id=url.id_sheet)
     result = await request.get_cvs()
     #здесь будет функция обработки cvs
-    data=ReadCVSToObject(result,"2026-01")
+    data=ReadCVSToObject(result,"2025-12")
     if not data.errors:
-        print(data.list_dicts)
-        return data.list_dicts
+        print(data.list_object)
+        return data.list_object
     else:
         print("Пустой лист")
-        return []
+        return None
 
 async def main():
     true_url_with_gid = "https://docs.google.com/spreadsheets/d/1LYEW_Ma5dUwfwhqN6lcT6WAd1yF6spGa9vp1qYAb-pQ/edit?gid=1725907990#gid=1725907990"
     url_none_gid = "https://docs.google.com/spreadsheets/d/1LYEW_Ma5dUwfwhqN6lcT6WAd1yF6spGa9vp1qYAb-pQ/edit?usp=drivesdk"
     false_url = "https://abracydabra.ru/bullsheet"
+    telegram_id='someid'
     async with aiohttp.ClientSession() as session:
         await test(true_url_with_gid, session)
-        await test(url_none_gid, session)
+        data = await test(url_none_gid, session)
         await test(false_url, session)
+    if data is not None:
+        async with async_session() as s:
+            await create_schedule_from_list(s,data,telegram_id)
+            print("Я добавил все дерьмо в БД")
 
 if __name__ == '__main__':
     asyncio.run(main())

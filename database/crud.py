@@ -41,7 +41,7 @@ async def create_schedule(session:AsyncSession,user_task:TaskSchema,tg_id):
     task = res.scalar_one_or_none()
     if task is not None:
         return False
-    task=Task(user_id=user.id,adress=user_task.adress,month=user_task.month,date_time=user_task.date_time,
+    task=Task(user_id=user.id,adress=user_task.adress,month=user_task.month,date_time=str(user_task.date_time),
               number=user_task.number,workers=user_task.workers,type=user_task.type)
     session.add(task)
     await session.commit()
@@ -56,11 +56,11 @@ async def create_schedule_from_list(session:AsyncSession,user_task_list:List[Tas
         return False
         #нет пользователя в бд
     res = await session.execute(select(Task).where(Task.month==user_task_list[0].month,Task.user_id==user.id))
-    task = res.scalar_one_or_none()
+    task = res.scalar()
     if task is not None:
         return False
         #записи этого месяца уже есть, нужно сначала их удалить чтоб не допустить битой информации
-    task_list=[Task(user_id=user.id,adress=el.adress,month=el.month,date_time=el.date_time,
+    task_list=[Task(user_id=user.id,adress=el.adress,month=el.month,date_time=str(el.date_time),
               number=el.number,workers=el.workers,type=el.type) for el in user_task_list]
     session.add_all(task_list)
     await session.commit()
