@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     token_bot: str
     api_key: str
     example_table: AnyUrl
+    hello_msg:str
     base_dir: Path|None = BASE_DIR
     model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
     @model_validator(mode='after')

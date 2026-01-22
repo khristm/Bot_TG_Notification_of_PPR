@@ -156,12 +156,6 @@ class ReadCVSToObject:
             self.list_object.append(obj)
         return self
 
-
-
-
-
-
-
 async def test(user_sheet_url,session):
     """Имитация логики загрузки данных с гугл таблицы"""
     url=ModifyUrl(user_sheet_url)
