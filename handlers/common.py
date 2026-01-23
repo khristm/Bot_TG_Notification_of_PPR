@@ -1,23 +1,34 @@
 
 from aiogram import Router, types, F
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from database.crud import create_user, update_chat_id
 from schemas import UserSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import config
 from keybords.common import registration_keyboard, main_menu
+from utils import MonthSchedule
 
 router=Router()
 
+@router.callback_query(F.data=='main_menu')
+async def get_main_menu(callback:CallbackQuery, state:FSMContext):
+    """Хэндлер возврата в главное меню, вызвает клаву главного меню"""
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer("Выбери пункт меню:",reply_markup=await main_menu())
+
 @router.message(Command("start"))
 async def handler_start(message: Message):
+    """Хенделер первого запуска бота, инструкция и следом клава с кнопкой регистрации"""
     await message.answer(config.hello_msg)
     await message.answer(text="Нажми на кнопку регистрации",reply_markup=await registration_keyboard())
 
 
 @router.callback_query(F.data=='registration')
 async def registration(callback:CallbackQuery, session:AsyncSession):
+    """Хэндлер события нажатия клавиши регистрации, вызываем crud функцию бд, в конце вываливаем клаву главного меню"""
     await callback.answer()
     user_data=UserSchema(tg_id=callback.from_user.id)
     res = await create_user(session=session ,user_data=user_data)

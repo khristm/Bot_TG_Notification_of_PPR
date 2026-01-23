@@ -1,9 +1,17 @@
 from aiogram.filters.callback_data import CallbackData
 from datetime import datetime, timedelta
 import calendar
+from aiogram.fsm.state import State, StatesGroup
 
 class MonthSchedule(CallbackData, prefix='MonthSchedule'):
+    """Класс колбэков использую при создании динамической клавиатуры с месяцами для добавления графика"""
     month: str
+
+class ParsingState(StatesGroup):
+    """Класс для изменения стадий парсинга и передачи между ними данных"""
+    date=State()
+    url=State()
+    gid=State()
 
 def get_4_month():
     final_list = []

@@ -23,6 +23,7 @@ class ModifyUrl:
         """Проверяем наличие gid= в ссылке, если есть формируем готовую ссылку для запроса cvs"""
         if 'gid=' in self.url_user:
             self.url_with_gid = self.url_user.replace('edit?', 'export?format=csv&')
+            print(f"url_with_gid: {self.url_with_gid}")
             return self
         else:
             return None
@@ -47,6 +48,7 @@ class ModifyUrl:
         return self
     def create_url_with_gid(self,gid):
         self.url_with_gid="https://docs.google.com/spreadsheets/d/"+self.id_sheet+"/export?format=csv&"+gid
+        print(f"Ссылка на скачивание cvs {self.url_with_gid}")
         return self
 
 class RequestToGoogle:
