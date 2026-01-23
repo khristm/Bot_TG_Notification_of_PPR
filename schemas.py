@@ -2,8 +2,8 @@ from pydantic import BaseModel
 from datetime import datetime
 
 class UserSchema(BaseModel):
-    tg_id: str
-    chat_id: str|None=None
+    tg_id: int
+    chat_id: int|None=None
     phone_number: str|None=None
 
 class TaskSchema(BaseModel):

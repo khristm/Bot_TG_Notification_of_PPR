@@ -5,8 +5,8 @@ class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, unique=True, autoincrement=True,primary_key=True)
     phone_number= Column(String, unique=True)
-    tg_id=Column(String, unique=True)
-    chat_id=Column(String)
+    tg_id=Column(Integer, unique=True)
+    chat_id=Column(Integer)
 
 class Task(Base):
     __tablename__ = 'tasks'
