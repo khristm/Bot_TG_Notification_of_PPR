@@ -1,5 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
+from utils import get_4_month, MonthSchedule
 
 
 async def registration_keyboard():
@@ -14,3 +15,4 @@ async def main_menu():
     builder.add(types.InlineKeyboardButton(text="Просмотреть график", callback_data="view_schudele"))
     builder.adjust(1)
     return builder.as_markup()
+

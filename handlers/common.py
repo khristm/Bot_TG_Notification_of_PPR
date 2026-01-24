@@ -25,7 +25,7 @@ async def registration(callback:CallbackQuery, session:AsyncSession):
     if res:
         await callback.message.answer("Регистрация успешно завершена")
     else:
-        await callback.message.answer("Я тебя уже знал - похоже ты уже регистрировался когда-то раньше")
+        await callback.message.answer("Я тебя узнал - похоже ты уже регистрировался когда-то раньше")
     await callback.message.answer("Выбери пункт меню:",reply_markup=await main_menu())
 
 @router.message(Command("lock_chat"))
@@ -34,3 +34,6 @@ async def lock_chat(message:Message, session:AsyncSession):
     res = await update_chat_id(session=session, user_data=user)
     if res:
         await message.answer("Чат привязан для оповещений")
+    else:
+        await message.answer("Мы с тобой не знакомы, твою команду выполнить не могу")
+

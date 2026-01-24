@@ -1,14 +1,11 @@
 import asyncio
 from aiogram import Dispatcher, Bot
-from aiogram.types import Message
 from database.database import async_session
-import database.init_db
 from config import config
-from aiogram.filters import Command
-
 from database.init_db import init_db
 from middleware import DbSessionMiddleware
 from handlers.common import router as common_router
+from handlers.parsing import router as parsing_router
 
 async def main():
     await init_db()
@@ -16,6 +13,7 @@ async def main():
     dp=Dispatcher()
     dp.update.middleware(DbSessionMiddleware(session_pool=async_session))
     dp.include_router(common_router)
+    dp.include_router(parsing_router)
     await dp.start_polling(bot)
 
 
