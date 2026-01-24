@@ -28,24 +28,33 @@ async def enter_url(callback:CallbackQuery, callback_data:MonthSchedule, state:F
     ParsingState.date=month
     await state.set_state(ParsingState.url)
     await callback.message.delete()
-    await callback.message.answer(f"Ты выбрал месяц: {month}, теперь введи URL таблицы и отправь",
+    sent_msg = await callback.message.answer(f"Ты выбрал месяц: {month}, теперь введи URL таблицы и отправь",
                                   reply_markup=await cancel_keyboard())
+    await state.update_data(id_msg=sent_msg.message_id)
 
 @router.message(F.text,ParsingState.url)
-async def parsing_url(message:Message, session:AsyncSession):
+async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
     """Хэндлер на перехват ссылки юзера здесь будем начинать парсинг"""
+
+    await message.bot.delete_messages(message.chat.id, ParsingState.id_msg)
     await message.delete()
     user_url=ModifyUrl(message.text)
     if user_url.errors:
-        return await message.answer("Неккоректная ссылка", reply_markup=await cancel_keyboard())
+        return await message.answer("Некоректная ссылка", reply_markup=await cancel_keyboard())
     if user_url.url_with_gid is None:
         return await message.answer("Тут создам клавиатуру для выбора gid")
     async with aiohttp.ClientSession() as httpsession:
-        down_data=RequestToGoogle(message.text,httpsession,sheet_id=None)
+        down_data=RequestToGoogle(user_url.url_with_gid,httpsession,sheet_id=None)
         res = await down_data.get_cvs()
+        if res is None:
+            return await message.answer("Ошибка запроса на скачивание данных с гугл таблицы, проверь открыт ли доступ к ней",
+                                        reply_markup=await exit_to_menu_keyboard())
     data=ReadCVSToObject(res,ParsingState.date)
     if data.errors:
-        return await message.answer("Ошибка парсинга гугл таблицы", reply_markup=await exit_to_menu_keyboard())
-    await create_schedule_from_list(session,data.list_object,message.from_user.id)
+        return await message.answer("Ошибка парсинга гугл таблицы, проверь ее структуру и название столбцов",
+                                    reply_markup=await exit_to_menu_keyboard())
+    if not await create_schedule_from_list(session,data.list_object,message.from_user.id):
+        return await message.answer("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
+                                    reply_markup=await exit_to_menu_keyboard())
     return await message.answer("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
 

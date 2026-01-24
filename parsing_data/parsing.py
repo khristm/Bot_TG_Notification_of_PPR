@@ -65,6 +65,7 @@ class RequestToGoogle:
                 return data
         except Exception as e:
             print(f"Ошибка сетевого запроса: {e}")
+            return None
     async def get_gid(self):
         """Запрос на получение списка листов из таблицы если ссылка без указания на лист"""
         try:
