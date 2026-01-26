@@ -84,8 +84,16 @@ async def get_tasks_today(session:AsyncSession,tg_id):
     if user is None:
         return None
     date_now=datetime.now()
-    date_chek=date_now+timedelta(hours=20)
+    date_chek=date_now+timedelta(hours=23)
     res = await session.execute(select(Task).
                                 where(Task.date_time>date_now,
                                       Task.date_time<date_chek,Task.user_id==user.id))
+    return res.scalars().all()
+
+async def get_months(session:AsyncSession,tg_id):
+    """Возращает список месяцев которые есть у юзера в бд"""
+    user = await get_user(session,tg_id)
+    if user is None:
+        return False
+    res = await session.execute(select(Task.month).where(Task.user_id==user.id,Task.date_time>datetime.now()).distinct())
     return res.scalars().all()
