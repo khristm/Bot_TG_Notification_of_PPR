@@ -1,6 +1,7 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
 from utils import get_4_month, MonthSchedule
+from typing import List
 
 async def get_date_schedule():
     """Клавиатура с динамичекими кнопками заполняющаяся из списка месяцев"""
@@ -23,3 +24,12 @@ async def exit_to_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(text="Выйти в главное меню", callback_data="main_menu"))
     return builder.as_markup()
+
+async def get_gid_keyboard(list_gid:List[dict]):
+    builder = InlineKeyboardBuilder()
+    for el in list_gid:
+        builder.add(types.InlineKeyboardButton(text=el['title'], callback_data=str(list_gid.index(el))))
+    builder.add(types.InlineKeyboardButton(text="Выйти в меню", callback_data="main_menu"))
+    builder.adjust(1)
+    return builder.as_markup()
+

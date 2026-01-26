@@ -53,13 +53,17 @@ async def create_schedule_from_list(session:AsyncSession,user_task_list:List[Tas
          у всех объектов эти данные одинаковые"""
     user = await get_user(session,tg_id)
     if user is None:
+        print("Не нашли пользователя")
         return False
         #нет пользователя в бд
+    print("Проверили существование пользователя")
     res = await session.execute(select(Task).where(Task.month==user_task_list[0].month,Task.user_id==user.id))
     task = res.scalar()
     if task is not None:
+        print("res.scalar() вернул не None, у этого пользователя есть записи на этот месяц")
         return False
         #записи этого месяца уже есть, нужно сначала их удалить чтоб не допустить битой информации
+    print("Проверили данные из бд на дублирование")
     task_list=[Task(user_id=user.id,adress=el.adress,month=el.month,date_time=str(el.date_time),
               number=el.number,workers=el.workers,type=el.type) for el in user_task_list]
     session.add_all(task_list)

@@ -9,10 +9,8 @@ class MonthSchedule(CallbackData, prefix='MonthSchedule'):
 
 class ParsingState(StatesGroup):
     """Класс для изменения стадий парсинга и передачи между ними данных"""
-    id_msg=State()
-    date=State()
-    url=State()
-    gid=State()
+    waiting_url=State()
+    waiting_gid=State()
 
 def get_4_month():
     final_list = []
