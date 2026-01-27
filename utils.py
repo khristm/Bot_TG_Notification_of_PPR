@@ -1,7 +1,15 @@
+import aiogram
 from aiogram.filters.callback_data import CallbackData
 from datetime import datetime, timedelta
 import calendar
 from aiogram.fsm.state import State, StatesGroup
+from database.crud import get_list_today_tasks
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def everyday_check_to_msg(session:AsyncSession):
+    list_tasks=await get_list_today_tasks(session)
+
 
 class MonthSchedule(CallbackData, prefix='MonthSchedule'):
     """Класс колбэков использую при создании динамической клавиатуры с месяцами для добавления графика"""

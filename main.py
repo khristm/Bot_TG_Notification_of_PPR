@@ -9,6 +9,7 @@ from handlers.parsing import router as parsing_router
 from handlers.read import router as read_router
 from database.database import dvijok
 from handlers.delete import router as delete_router
+from database.crud import get_list_today_tasks
 
 async def main():
     await init_db()
@@ -28,7 +29,12 @@ async def main():
 
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Отключено пользователем")
+    # try:
+    #     asyncio.run(main())
+    # except KeyboardInterrupt:
+    #     print("Отключено пользователем")
+    async def test():
+        async with async_session() as session:
+            res = await get_list_today_tasks(session)
+            print(res)
+    asyncio.run(test())

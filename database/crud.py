@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User, Task
 from typing import List
 from datetime import datetime, timedelta
+from database.database import async_session
+
 
 
 async def get_user(session:AsyncSession,tg_token):
@@ -78,18 +80,6 @@ async def delete_tasks(session:AsyncSession,tg_id, month):
     await session.commit()
     return True
 
-async def get_tasks_today(session:AsyncSession,tg_id):
-    """Функция запроса задач из БД, для ежедневного бота оповещателя"""
-    user = await get_user(session,tg_id)
-    if user is None:
-        return None
-    date_now=datetime.now()
-    date_chek=date_now+timedelta(hours=23)
-    res = await session.execute(select(Task).
-                                where(Task.date_time>date_now,
-                                      Task.date_time<date_chek,Task.user_id==user.id))
-    return res.scalars().all()
-
 async def get_months(session:AsyncSession,tg_id):
     """Возращает список месяцев которые есть у юзера в бд"""
     user = await get_user(session,tg_id)
@@ -116,3 +106,33 @@ async def delete_task_in_month(session, month,tg_id):
     except:
         await session.rollback()
         return False
+
+async def get_tasks_today(session:AsyncSession,user:User,date_check, date_now):
+    """Функция запроса задач из БД, для ежедневного бота оповещателя """
+    # user = await get_user(session,tg_id)
+    # if user is None:
+    #     return None
+    # date_now = datetime.now()
+    # date_chek = date_now + timedelta(hours=23)
+    res = await session.execute(select(Task,User.chat_id).join(User, Task.user_id == User.id).
+                                where(Task.date_time>date_now,
+                                      Task.date_time<date_check,Task.user_id==user.id))
+    return res.all()
+
+async def get_all_user(session):
+    """Выборка всех пользователей с указанным chat_id для оповещений"""
+    res = await session.execute(select(User).where(User.chat_id!=None))
+    user_list = res.scalars().all()
+    return user_list
+
+async def get_list_today_tasks(session:AsyncSession):
+    """Запрос актуальных задач, для пользователей с указанным chat_id"""
+    user_list = await get_all_user(session)
+    date_now = datetime.now()
+    date_check = date_now + timedelta(hours=23)
+    task_list = []
+    for user in user_list:
+        res = await get_tasks_today(session, user, date_check, date_now)
+        task_list.append(res)
+    return task_list
+
