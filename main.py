@@ -7,6 +7,8 @@ from middleware import DbSessionMiddleware
 from handlers.common import router as common_router
 from handlers.parsing import router as parsing_router
 from handlers.read import router as read_router
+from database.database import dvijok
+from handlers.delete import router as delete_router
 
 async def main():
     await init_db()
@@ -16,7 +18,12 @@ async def main():
     dp.include_router(common_router)
     dp.include_router(parsing_router)
     dp.include_router(read_router)
-    await dp.start_polling(bot)
+    dp.include_router(delete_router)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+        await dvijok.dispose()
 
 
 

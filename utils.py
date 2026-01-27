@@ -11,6 +11,8 @@ class ParsingState(StatesGroup):
     """Класс для изменения стадий парсинга и передачи между ними данных"""
     waiting_url=State()
     waiting_gid=State()
+    waiting_month=State()
+    waiting_month_for_delete=State()
 
 def get_4_month():
     final_list = []

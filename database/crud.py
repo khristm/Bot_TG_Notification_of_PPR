@@ -97,3 +97,22 @@ async def get_months(session:AsyncSession,tg_id):
         return False
     res = await session.execute(select(Task.month).where(Task.user_id==user.id,Task.date_time>datetime.now()).distinct())
     return res.scalars().all()
+
+async def get_task_in_month(session,month,tg_id):
+    user = await get_user(session,tg_id)
+    if user is None:
+        return []
+    res = await session.execute(select(Task).where(Task.month==month,Task.user_id==user.id))
+    return res.scalars().all()
+
+async def delete_task_in_month(session, month,tg_id):
+    user = await get_user(session,tg_id)
+    if user is None:
+        return False
+    try:
+        await session.execute(delete(Task).where(Task.month==month,Task.user_id==user.id))
+        await session.commit()
+        return True
+    except:
+        await session.rollback()
+        return False
