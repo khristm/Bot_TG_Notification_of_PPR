@@ -7,11 +7,11 @@ class UserSchema(BaseModel):
     phone_number: str|None=None
 
 class TaskSchema(BaseModel):
-    adress:str
-    month:str
+    adress:str|None
+    month:str|None
     date_time:datetime
-    number:int
-    workers:str
-    type:str
+    number:int|None
+    workers:str|None
+    type:str|None
 
 

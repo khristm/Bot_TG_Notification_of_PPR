@@ -14,11 +14,11 @@ router=Router()
 
 
 
-@router.callback_query(F.data=='parsing')
+@router.callback_query(F.data=='parsing',F.chat.type=="private")
 async def get_month_for_parsing(callback:CallbackQuery):
     """Первый хэндлер для добавления графика, вызывает клавиатуру где динамически формируются 4 месяца - текущий и 3 следующих"""
-    await callback.message.delete()
-    await callback.message.answer(text="Укажи месяц на который добавляем график:", reply_markup=await get_date_schedule())
+    # await callback.message.delete()
+    await callback.message.edit_text(text="Укажи месяц на который добавляем график:", reply_markup=await get_date_schedule())
 
 
 @router.callback_query(MonthSchedule.filter())
@@ -26,8 +26,8 @@ async def enter_url(callback:CallbackQuery, callback_data:MonthSchedule, state:F
     """Событие нажатия кнопки в клавиатуре с динамическими кнопками с месяцами"""
     month=callback_data.month
     await state.set_state(ParsingState.waiting_url)
-    await callback.message.delete()
-    sent_msg = await callback.message.answer(f"Ты выбрал месяц: {month}, теперь введи URL таблицы и отправь",
+    # await callback.message.delete()
+    sent_msg = await callback.message.edit_text(f"Ты выбрал месяц: {month}, теперь введи URL таблицы и отправь",
                                   reply_markup=await cancel_keyboard())
     await state.update_data(id_msg=sent_msg.message_id, date=month)
 
@@ -77,20 +77,20 @@ async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMConte
     gid_user_index=callback.data
     user_url=ModifyUrl(url)
     user_url.create_url_with_gid(gid_list[int(gid_user_index)]['gid'])
-    await callback.message.delete()
+    # await callback.message.delete()
     async with aiohttp.ClientSession() as httpsession:
         request = RequestToGoogle(url_user=user_url.url_with_gid,session_obj=httpsession,sheet_id=None)
         cvs_data = await request.get_cvs()
         read_cvs = ReadCVSToObject(cvs_data,month)
         if read_cvs.errors:
-            return await callback.message.answer("Ошибка парсинга гугл таблицы,"
+            return await callback.message.edit_text("Ошибка парсинга гугл таблицы,"
                                                  " проверь ее структуру, название столбцов,"
                                                  " возможно не совпадает указанный месяц и даты в таблице",
                                         reply_markup=await exit_to_menu_keyboard())
         if not await create_schedule_from_list(session,read_cvs.list_object,callback.from_user.id):
-            return await callback.message.answer("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
+            return await callback.message.edit_text("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
                                         reply_markup=await exit_to_menu_keyboard())
-        return await callback.message.answer("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
+        return await callback.message.edit_text("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
 
 
 

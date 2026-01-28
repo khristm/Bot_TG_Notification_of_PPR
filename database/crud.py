@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User, Task
 from typing import List
 from datetime import datetime, timedelta
-from database.database import async_session
+
 
 
 
@@ -85,14 +85,17 @@ async def get_months(session:AsyncSession,tg_id):
     user = await get_user(session,tg_id)
     if user is None:
         return False
-    res = await session.execute(select(Task.month).where(Task.user_id==user.id,Task.date_time>datetime.now()).distinct())
+    res = await session.execute(select(Task.month).
+                                where(Task.user_id==user.id,Task.date_time>datetime.now())
+                                .distinct()
+                                .order_by(Task.month))
     return res.scalars().all()
 
 async def get_task_in_month(session,month,tg_id):
     user = await get_user(session,tg_id)
     if user is None:
         return []
-    res = await session.execute(select(Task).where(Task.month==month,Task.user_id==user.id))
+    res = await session.execute(select(Task).where(Task.month==month,Task.user_id==user.id).order_by(Task.date_time))
     return res.scalars().all()
 
 async def delete_task_in_month(session, month,tg_id):
@@ -116,7 +119,7 @@ async def get_tasks_today(session:AsyncSession,user:User,date_check, date_now):
     # date_chek = date_now + timedelta(hours=23)
     res = await session.execute(select(Task,User.chat_id).join(User, Task.user_id == User.id).
                                 where(Task.date_time>date_now,
-                                      Task.date_time<date_check,Task.user_id==user.id))
+                                      Task.date_time<date_check,Task.user_id==user.id).order_by(Task.date_time))
     return res.all()
 
 async def get_all_user(session):
@@ -136,3 +139,10 @@ async def get_list_today_tasks(session:AsyncSession):
         task_list.append(res)
     return task_list
 
+async def delete_chat_id(session:AsyncSession,tg_id):
+    user = await get_user(session, tg_id)
+    if user is None:
+        return False
+    user.chat_id=None
+    await session.commit()
+    return True

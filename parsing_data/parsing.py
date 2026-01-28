@@ -97,6 +97,7 @@ class ReadCVSToObject:
     def __read_cvs(self,data_cvs):
         try:
            data=pandas.read_csv(BytesIO(data_cvs))
+           data=data.replace({pandas.NA: None, float('nan'): None})#пытаемся проглотить пустые ячейки из таблицы
            data_dict=data.to_dict(orient="records")
         except Exception as e:
             print(f"Не смогли прочитать cvs с ошибкой: {e}")
@@ -154,9 +155,13 @@ class ReadCVSToObject:
             self.errors = True
             return None
         #создаем объекты и добавляем в список
-        for el in self.list_dicts:
-            obj=TaskSchema(**el)
-            self.list_object.append(obj)
+        try:
+            for el in self.list_dicts:
+                obj=TaskSchema(**el)
+                self.list_object.append(obj)
+        except Exception as e:
+            print(f"Ошибка в создании объекта при парсинге: {e}")
+            self.errors = True
         return self
 
 async def test(user_sheet_url,session):

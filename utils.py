@@ -18,13 +18,17 @@ async def everyday_check_to_msg(session:AsyncSession,bot):
         for task in users:
             if not task:
                 continue
-            number_task=task.Task.number
-            adress_task=task.Task.adress
-            workers=task.Task.workers
-            type_work=task.Task.type
+            if task.Task.number is None: number_task="❌"
+            else: number_task=task.Task.number
+            if task.Task.adress is None: adress_task="❌"
+            else: adress_task=task.Task.adress
+            if task.Task.workers is None: workers="❌"
+            else: workers=task.Task.workers
+            if task.Task.type is None: type_work="❌"
+            else: type_work=task.Task.type
             date_time=task.Task.date_time
             chat_id=task[1]
-            result_info=(f'------------------------------\n'
+            result_info=(f'-------------------------\n'
                          f' 🔹Номер задания: {number_task}\n'
                          f' 🏢Адрес: {adress_task}\n'
                          f' ⏰Дата: {date_time}\n'
@@ -32,11 +36,6 @@ async def everyday_check_to_msg(session:AsyncSession,bot):
                          f' 🛠Тип задачи: {type_work}\n')
             msg=msg+result_info
         await bot.send_message(chat_id=chat_id, text=msg)
-
-
-
-
-
 
 
 class MonthSchedule(CallbackData, prefix='MonthSchedule'):
