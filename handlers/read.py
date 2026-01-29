@@ -9,7 +9,7 @@ from database.crud import get_months, get_task_in_month
 
 router=Router()
 
-@router.callback_query(F.data=="view_schedule",F.chat.type=="private")
+@router.callback_query(F.data=="view_schedule",F.message.chat.type == "private")
 async def view_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
     await callback.answer()
     # await callback.message.delete()

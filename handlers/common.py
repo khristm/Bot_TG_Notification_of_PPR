@@ -12,7 +12,7 @@ from keybords.parsing import exit_to_menu_keyboard
 
 router=Router()
 
-@router.callback_query(F.data=='main_menu',F.chat.type=="private")
+@router.callback_query(F.data=='main_menu',F.message.chat.type == "private")
 async def get_main_menu(callback:CallbackQuery, state:FSMContext):
     """Хэндлер возврата в главное меню, вызвает клаву главного меню"""
     await state.clear()
@@ -26,7 +26,7 @@ async def handler_start(message: Message):
     await message.answer(text="Нажми на кнопку регистрации",reply_markup=await registration_keyboard())
 
 
-@router.callback_query(F.data=='registration',F.chat.type=="private")
+@router.callback_query(F.data=='registration',F.message.chat.type == "private")
 async def registration(callback:CallbackQuery, session:AsyncSession):
     """Хэндлер события нажатия клавиши регистрации, вызываем crud функцию бд, в конце вываливаем клаву главного меню"""
     await callback.answer()
@@ -48,7 +48,7 @@ async def lock_chat(message:Message, session:AsyncSession):
     else:
         await message.answer("Мы с тобой не знакомы, твою команду выполнить не могу")
 
-@router.callback_query(F.data=='reset_chat_id',F.chat.type=="private")
+@router.callback_query(F.data=='reset_chat_id',F.message.chat.type == "private")
 async def reset_chat_id(callback:CallbackQuery, session:AsyncSession):
     res = await delete_chat_id(session,callback.from_user.id)
     if res:

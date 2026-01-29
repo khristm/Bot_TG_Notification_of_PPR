@@ -4,6 +4,7 @@ import calendar
 from aiogram.fsm.state import State, StatesGroup
 from database.crud import get_list_today_tasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from aiogram.exceptions import TelegramForbiddenError
 
 
 async def everyday_check_to_msg(session:AsyncSession,bot):
@@ -35,7 +36,10 @@ async def everyday_check_to_msg(session:AsyncSession,bot):
                          f' 👥Исполнители: {workers}\n'
                          f' 🛠Тип задачи: {type_work}\n')
             msg=msg+result_info
-        await bot.send_message(chat_id=chat_id, text=msg)
+        try:
+            await bot.send_message(chat_id=chat_id, text=msg)
+        except TelegramForbiddenError:
+            print(f"Бот заблокирован в чате {chat_id}, не смогли туда послать оповещение")
 
 
 class MonthSchedule(CallbackData, prefix='MonthSchedule'):

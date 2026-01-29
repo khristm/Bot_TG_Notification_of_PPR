@@ -14,7 +14,7 @@ router=Router()
 
 
 
-@router.callback_query(F.data=='parsing',F.chat.type=="private")
+@router.callback_query(F.data=='parsing',F.message.chat.type == "private")
 async def get_month_for_parsing(callback:CallbackQuery):
     """Первый хэндлер для добавления графика, вызывает клавиатуру где динамически формируются 4 месяца - текущий и 3 следующих"""
     # await callback.message.delete()
