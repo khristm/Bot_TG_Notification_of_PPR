@@ -15,13 +15,14 @@ router=Router()
 
 
 @router.callback_query(F.data=='parsing',F.message.chat.type == "private")
-async def get_month_for_parsing(callback:CallbackQuery):
+async def get_month_for_parsing(callback:CallbackQuery,state:FSMContext):
     """Первый хэндлер для добавления графика, вызывает клавиатуру где динамически формируются 4 месяца - текущий и 3 следующих"""
     # await callback.message.delete()
+    await state.set_state(ParsingState.waiting_month)
     await callback.message.edit_text(text="Укажи месяц на который добавляем график:", reply_markup=await get_date_schedule())
 
 
-@router.callback_query(MonthSchedule.filter())
+@router.callback_query(MonthSchedule.filter(),ParsingState.waiting_month)
 async def enter_url(callback:CallbackQuery, callback_data:MonthSchedule, state:FSMContext):
     """Событие нажатия кнопки в клавиатуре с динамическими кнопками с месяцами"""
     month=callback_data.month

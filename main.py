@@ -11,6 +11,7 @@ from handlers.parsing import router as parsing_router
 from handlers.read import router as read_router
 from database.database import dvijok
 from handlers.delete import router as delete_router
+from handlers.days_ppr import router as days_ppr_router
 from utils import everyday_check_to_msg
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -48,6 +49,7 @@ async def main():
     dp.include_router(parsing_router)
     dp.include_router(read_router)
     dp.include_router(delete_router)
+    dp.include_router(days_ppr_router)
     try:
         print(datetime.now()," Включение поллинга ")
         await dp.start_polling(bot)

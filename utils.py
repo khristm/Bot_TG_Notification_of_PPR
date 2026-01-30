@@ -1,3 +1,5 @@
+from calendar import monthrange
+
 from aiogram.filters.callback_data import CallbackData
 from datetime import datetime, timedelta
 import calendar
@@ -53,6 +55,10 @@ class ParsingState(StatesGroup):
     waiting_month=State()
     waiting_month_for_delete=State()
 
+class StateForDaysPPR(StatesGroup):
+    waiting_month=State()
+    waiting_date=State()
+
 def get_4_month():
     final_list = []
     month = datetime.now().replace(day=1)
@@ -61,5 +67,34 @@ def get_4_month():
         day_in_month = calendar.monthrange(month.year, month.month)[1]
         month = month+timedelta(days=day_in_month)
     return final_list
+
+async def get_3_days(month:str):
+    month = datetime.strptime(month, '%Y-%m').replace(day=1)
+    list_days=[f"{str(month.year)}-{str(month.month)}-{str(month.day)}"]
+    for i in range(2):
+        month = month + timedelta(days=1)
+        list_days.append(f"{str(month.year)}-{str(month.month)}-{str(month.day)}")
+    return list_days
+
+
+async def get_days_ppr(first_day:str):
+    first_day=datetime.strptime(first_day, '%Y-%m-%d')
+    month=first_day.month
+    day_ppr=first_day
+    list_days=[]
+    while day_ppr.month==month:
+        list_days.append(day_ppr)
+        day_ppr+=timedelta(days=2)
+    final_str=f"Список дат доступных для ППР на {first_day.strftime('%m.%Y')}:\n"
+    day_week=("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
+    day_in_month=monthrange(first_day.year,first_day.month)[1]
+    for day in list_days:
+        if day<first_day.replace(day=1)+timedelta(days=3) or day>first_day.replace(day=day_in_month)-timedelta(days=2):
+            continue
+        if day.weekday()!=5 and day.weekday()!=6 and day.weekday()!=0:
+            day_str=f"🌙  {day.strftime('%d.%m')} {day_week[day.weekday()]}\n"
+            final_str+=day_str
+    return final_str
+
 
 
