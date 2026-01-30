@@ -117,7 +117,7 @@ class ReadCVSToObject:
                 new_dict["number"]=el["№ задания"]
                 new_dict["adress"] = el["Адрес"]
                 new_dict["month"]=self.month
-                new_dict["date_time"]=el["Дата"]
+                new_dict["date_time"]=el["Дата и время"]
                 new_dict["workers"]=el["Исполнители"]
                 new_dict["type"]=el["Тип работ"]
                 new_list.append(new_dict)
