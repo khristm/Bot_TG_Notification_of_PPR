@@ -25,6 +25,7 @@ async def notification(bot:Bot, scheduler:AsyncIOScheduler):
     scheduler.add_job(run_check_task, 'cron',
                       hour=config.time_check_tasks.hour,
                       minute=config.time_check_tasks.minute,
+                      misfire_grace_time=600,
                       kwargs={"bot": bot})
 
 
@@ -38,7 +39,7 @@ async def main():
     print(datetime.now()," Подключение мидлвеаров ")
     dp.update.middleware(DbSessionMiddleware(session_pool=async_session))
     dp.update.middleware(ExceptionsFromHandlers(bot))
-    print(datetime.now(), " Запуск проверки актуальных заданий ")
+    print(datetime.now(), " Включение планировщика заданий ")
     # async with async_session() as session:
     #     await everyday_check_to_msg(session,bot)
     scheduler = AsyncIOScheduler(timezone="Asia/Krasnoyarsk")

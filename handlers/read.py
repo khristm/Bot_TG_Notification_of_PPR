@@ -6,11 +6,13 @@ from keybords.common import month_user_keyboard
 from keybords.parsing import exit_to_menu_keyboard
 from utils import ParsingState
 from database.crud import get_months, get_task_in_month
+from datetime import datetime
 
 router=Router()
 
 @router.callback_query(F.data=="view_schedule",F.message.chat.type == "private")
 async def view_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
+    print(f"{datetime.now()} Хэндлер просмотра графика ППР, пользователь: {callback.from_user.id}")
     await callback.answer()
     # await callback.message.delete()
     res = await get_months(session, int(callback.from_user.id))
