@@ -4,3 +4,7 @@
 *.db-journal
 /.idea
 **/__pycache__/
+*.spec
+*.png
+/build
+/dist

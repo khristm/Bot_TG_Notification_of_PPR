@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime
 from aiogram import Dispatcher, Bot
-from sqlalchemy.ext.asyncio import AsyncSession
 from database.database import async_session
 from config import config
 from database.init_db import init_db
@@ -14,12 +13,15 @@ from handlers.delete import router as delete_router
 from handlers.days_ppr import router as days_ppr_router
 from utils import everyday_check_to_msg
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import threading
+from pystray import Icon, Menu, MenuItem
+from PIL import Image
+import ctypes
 
 async def run_check_task(bot:Bot):
     async with async_session() as session:
         print(datetime.now()," Запуск проверки актуальных заданий по расписанию")
         await everyday_check_to_msg(session, bot)
-
 
 async def notification(bot:Bot, scheduler:AsyncIOScheduler):
     scheduler.add_job(run_check_task, 'cron',
@@ -27,8 +29,6 @@ async def notification(bot:Bot, scheduler:AsyncIOScheduler):
                       minute=config.time_check_tasks.minute,
                       misfire_grace_time=600,
                       kwargs={"bot": bot})
-
-
 
 async def main():
     print(datetime.now(), " Инициализация БД ")
@@ -60,10 +60,43 @@ async def main():
         await bot.session.close()
         await dvijok.dispose()
 
+"""Ниже код для запуска из под exe в windows"""
+kernel32 = ctypes.windll.kernel32
+user32 = ctypes.windll.user32
+
+def get_console_handle():
+    return kernel32.GetConsoleWindow()
+
+def toggle_console(icon, item):
+    hwnd = get_console_handle()
+    if user32.IsWindowVisible(hwnd):
+        user32.ShowWindow(hwnd, 0)
+    else:
+        user32.ShowWindow(hwnd, 5)
+        user32.SetForegroundWindow(hwnd)
+
+def quit_app(icon):
+    icon.stop()
+    import os; os._exit(0)
+
+def run_bot():
+    asyncio.run(main())
 
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print(datetime.now()," Отключено пользователем ")
+    print(config.db_path)
+    print(config.base_dir)
+    if config.run_exe:
+        print("Запуск в системном трее")
+        icon=Image.open(config.base_dir/"icon.png")
+        menu=Menu(MenuItem('Показать/Скрыть консоль', toggle_console, default=True),
+                            MenuItem('Выход', quit_app))
+        tray_exe=Icon("Bot",icon,"Кузьма бот",menu)
+
+        threading.Thread(target=run_bot,daemon=True).start()
+        tray_exe.run()
+    else:
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            print(datetime.now()," Отключено пользователем ")

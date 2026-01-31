@@ -1,9 +1,7 @@
 import datetime
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
 from pathlib import Path
-from datetime import time
 import sys
 
 if getattr(sys, 'frozen', False):
@@ -20,6 +18,7 @@ class Settings(BaseSettings):
     api_key: str
     time_check_tasks:datetime.time
     hello_msg:str
+    run_exe:bool
     base_dir: Path|None = BASE_DIR
     model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
     @model_validator(mode='after')

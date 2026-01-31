@@ -1,0 +1,1 @@
+pyinstaller --onedir --add-data "icon.png;." --hidden-import="aiosqlite" --collect-all aiogram --collect-all apscheduler -n "KuzmaBot" main.py
