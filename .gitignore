@@ -8,3 +8,5 @@
 *.png
 /build
 /dist
+*.db-shm
+*.db_wal

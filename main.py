@@ -84,10 +84,12 @@ def run_bot():
 
 
 if __name__ == '__main__':
-    print(config.db_path)
-    print(config.base_dir)
+    print(f"Директория БД из переменной окружения: {config.db_path}")
     if config.run_exe:
         print("Запуск в системном трее")
+        hwnd = get_console_handle()
+        if user32.IsWindowVisible(hwnd):
+            user32.ShowWindow(hwnd, 0)
         icon=Image.open(config.base_dir/"icon.png")
         menu=Menu(MenuItem('Показать/Скрыть консоль', toggle_console, default=True),
                             MenuItem('Выход', quit_app))
