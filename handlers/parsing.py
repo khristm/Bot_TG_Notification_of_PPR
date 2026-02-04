@@ -42,12 +42,13 @@ async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
     data=await state.get_data()
     month=data.get("date")
     id_msg=data.get("id_msg")#достаем данные из FSM
-    await message.bot.delete_message(message.chat.id,id_msg)
+    #await message.bot.delete_message(message.chat.id,id_msg)
     await message.delete()
     user_url=ModifyUrl(message.text)#используем мой класс для модификации ссылки user_url теперь объект с атрибутами
     async with aiohttp.ClientSession() as httpsession:
         if user_url.errors:#если класс не смог найти ссылку на гугл таблицу в присланном атрибут ошибка встает в статус истина
-            return await message.answer("Некоректная ссылка", reply_markup=await cancel_keyboard())
+            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                       text="Некоректная ссылка", reply_markup=await cancel_keyboard())
         if user_url.url_with_gid is None:#если не смогли получить ссылку на конкретную таблицу из документа этот атрибут None
             request = RequestToGoogle(url_user=None,session_obj=httpsession,sheet_id=user_url.id_sheet)#мой класс для сетевых запросов для запроса к гуглу нужен id документа
             gid_list=await request.get_gid()#сам запрос к гуглу, вернет список листов в гугл таблице
@@ -55,30 +56,36 @@ async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
                 await state.set_state(ParsingState.waiting_gid)
                 await state.update_data(url=message.text,gid_list=gid_list)
                 #сменили этап FSM и записали данные в хранилище FSM дальше вызываем создание новой клавиатуры куда аргументом передаем список листов
-                return await message.answer("Ты прислал ссылку на гугл таблицу без указания конкретно листа,"
+                return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                           text="Ты прислал ссылку на гугл таблицу без указания конкретно листа,"
                                             " укажи с кого листа добавляем данные",reply_markup=await get_gid_keyboard(gid_list))
             else:
-                return await message.answer("Я не смог прочитать листы из твоей таблицы, проверь настройки доступа к ней",
+                return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                           text="Я не смог прочитать листы из твоей таблицы, проверь настройки доступа к ней",
                                         reply_markup=await exit_to_menu_keyboard())
         #вариант событий когда в ссылке был адрес прям листа
         down_data=RequestToGoogle(user_url.url_with_gid,httpsession,sheet_id=None)#для запроса на скачивание нужен url с адресом листа
         # ModifyUrl нам его возвращает уже готовой ссылкой на скачивание
         res = await down_data.get_cvs()#загрузка cvs
         if res is None:#проверка что скачивание удалось
-            return await message.answer("Ошибка запроса на скачивание данных с гугл таблицы, проверь открыт ли доступ к ней",
+            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                       text="Ошибка запроса на скачивание данных с гугл таблицы, проверь открыт ли доступ к ней",
                                             reply_markup=await exit_to_menu_keyboard())
         data=ReadCVSToObject(res,month)#мой класс для чтения cvs в список объектов пидантик
         if data.errors:#атрибут ошибки в истину встает когда что-то пошло не так
-            return await message.answer("Ошибка парсинга гугл таблицы, проверь ее структуру и название столбцов",
+            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                       text="Ошибка парсинга гугл таблицы, проверь ее структуру и название столбцов",
                                         reply_markup=await exit_to_menu_keyboard())
         if not await create_schedule_from_list(session,data.list_object,message.from_user.id):
             #круд операция на запись объектов в бд, из объекта класса чтения cvs ,берем атрибут .list_object там список объектов
             #и месяц выбранный пользователем на инлайн клавиатуре
             #если запись удачна круд оперция вернет истина, ниже обрабатываем ложь
-            return await message.answer("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
+            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                       text="Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
                                         reply_markup=await exit_to_menu_keyboard())
         print(f"{datetime.now()} Хэндлер парсинга графика ппр, данные добавлены")
-        return await message.answer("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
+        return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
+                                                   text="Данные добавлены", reply_markup=await exit_to_menu_keyboard())
 
 @router.callback_query(ParsingState.waiting_gid)#в создании клавиатуры выставляем стадию ожидания листа гугл таблицы здесь ловим эту стадию
 async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
