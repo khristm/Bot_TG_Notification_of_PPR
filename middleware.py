@@ -5,6 +5,7 @@ from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from keybords.common import main_menu
 from aiogram import Bot
+from datetime import datetime
 
 class DbSessionMiddleware(BaseMiddleware):
     def __init__(self, session_pool: async_sessionmaker):
@@ -39,29 +40,23 @@ class ExceptionsFromHandlers(BaseMiddleware):
         except TelegramForbiddenError:
             pass
         except TelegramBadRequest as e:
-            chat_id=None
             error_msg=(str(e)).lower()
-            #chat_id = data.get("event_chat").id
-            event = data.get("event")
-            if hasattr(event,"chat"):  # Если это Message
-                chat_id = event.chat.id
-            elif hasattr(event, "message") and event.message: # Если это CallbackQuery
-                chat_id = event.message.chat.id
-            elif hasattr(event, "from_user"): # ЛС с пользователем
-                chat_id = event.from_user.id
+            chat = data.get("event_chat")
+            chat_id = chat.id if chat else None
+            #print(f"event: {event}, data: {data}")
             if not chat_id:
                 return print(f"Нет в событии ид чата tg, ошибка: {error_msg}")
             if "message can't be edited" in error_msg:
-                print(f"Сообщение с мидллвеар: не смогли отредактировать старое сообщение"
+                print(f"Сообщение с мидллвеар: не смогли отредактировать старое сообщение "
                       f"ошибка: {e}")
-                await self.bot.send_message(chat_id, "Истек срок возможности редактирования меню(ограничения ТГ), высылаю тебе новое")
+                await self.bot.send_message(chat_id, "Истек срок возможности редактирования меню (ограничения ТГ), высылаю тебе новое")
                 return await self.bot.send_message(chat_id=chat_id,text="Выбери пункт меню:",reply_markup=await main_menu())
             if "message can't be deleted" in error_msg:
-                print(f"Сообщение с мидллвеар: не смогли удалить сообщение"
+                print(f"Сообщение с мидллвеар: не смогли удалить сообщение "
                       f"ошибка: {e}")
-                await self.bot.send_message(chat_id,"Истек срок возможности редактирования меню(ограничения ТГ), высылаю тебе новое")
+                await self.bot.send_message(chat_id,"Истек срок возможности редактирования меню (ограничения ТГ), высылаю тебе новое")
                 return await self.bot.send_message(chat_id=chat_id, text="Выбери пункт меню:",
                                                    reply_markup=await main_menu())
-            return print(f"Ошибка: {error_msg}, но ничего с этим делать мы не будем")
+            return print(f"{datetime.now()} Ошибка: {error_msg}, меню не перезапущено")
         except TelegramNetworkError as e:
-            print(f"Сетевая ошибка: {e}")
+            print(f"{datetime.now()} Сетевая ошибка: {e}")

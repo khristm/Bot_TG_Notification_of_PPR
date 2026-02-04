@@ -45,12 +45,12 @@ async def get_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMCo
             if task.workers is None: workers=""
             else: workers=task.workers
             task_from_db=(f"--------------\n"
-                        f"№ здания: {number}\n"
-                        f"Дата: {task.date_time}\n"
-                        f"Адрес: {adress}\n"
-                        f"Вид работ: {type_task}\n"
-                        f"Исполнители: {workers}\n")
+                        f"<i>№ здания:</i> <b>{number}</b>\n"
+                        f"<i>Дата:</i> <b>{task.date_time}</b>\n"
+                        f"<i>Адрес:</i> <b>{adress}</b>\n"
+                        f"<i>Вид работ:</i> <b>{type_task}</b>\n"
+                        f"<i>Исполнители: </i><b>{workers}</b>\n")
             task_msg+=task_from_db
-        return await callback.message.edit_text(task_msg,reply_markup=await exit_to_menu_keyboard())
+        return await callback.message.edit_text(task_msg,reply_markup=await exit_to_menu_keyboard(), parse_mode='HTML')
 
 

@@ -1,5 +1,4 @@
 from calendar import monthrange
-
 from aiogram.filters.callback_data import CallbackData
 from datetime import datetime, timedelta
 import calendar
@@ -32,14 +31,14 @@ async def everyday_check_to_msg(session:AsyncSession,bot):
             date_time=task.Task.date_time
             chat_id=task[1]
             result_info=(f'-------------------------\n'
-                         f' 🔹Номер задания: {number_task}\n'
-                         f' 🏢Адрес: {adress_task}\n'
-                         f' ⏰Дата: {date_time}\n'
-                         f' 👥Исполнители: {workers}\n'
-                         f' 🛠Тип задачи: {type_work}\n')
+                         f' 🔹<i>Номер задания:</i><b> {number_task}</b>\n'
+                         f' 🏢<i>Адрес: </i><b>{adress_task}</b>\n'
+                         f' ⏰<i>Дата: </i><b>{date_time}</b>\n'
+                         f' 👥<i>Исполнители: </i><b>{workers}</b>\n'
+                         f' 🛠<i>Тип задачи: </i><b>{type_work}</b>\n')
             msg=msg+result_info
         try:
-            await bot.send_message(chat_id=chat_id, text=msg)
+            await bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML')
         except TelegramForbiddenError:
             print(f"Бот заблокирован в чате {chat_id}, не смогли туда послать оповещение")
 
