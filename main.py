@@ -18,17 +18,22 @@ from pystray import Icon, Menu, MenuItem
 from PIL import Image
 import ctypes
 
-async def run_check_task(bot:Bot):
+async def run_check_task(bot:Bot, admin_bot:Bot):
     async with async_session() as session:
         print(datetime.now()," Запуск проверки актуальных заданий по расписанию")
         await everyday_check_to_msg(session, bot)
+        try:
+            await admin_bot.send_message(config.tg_admin,"Кузьма работает, выполнил рассылку уведомлений если они были")
+        except Exception as e:
+            print(f"Ошибка отправки уведомления админу: {e}")
 
-async def notification(bot:Bot, scheduler:AsyncIOScheduler):
+
+async def notification(bot:Bot, scheduler:AsyncIOScheduler, admin_bot:Bot):
     scheduler.add_job(run_check_task, 'cron',
                       hour=config.time_check_tasks.hour,
                       minute=config.time_check_tasks.minute,
                       misfire_grace_time=600,
-                      kwargs={"bot": bot})
+                      kwargs={"bot": bot, "admin_bot":admin_bot})
 
 async def main():
     print(datetime.now(), " Инициализация БД ")
@@ -36,6 +41,7 @@ async def main():
     print(datetime.now()," Инициализация бота ")
     bot=Bot(token=config.token_bot)
     dp=Dispatcher()
+    admin_bot=Bot(token=config.bot_admin)
     print(datetime.now()," Подключение мидлвеаров ")
     dp.update.middleware(DbSessionMiddleware(session_pool=async_session))
     dp.update.middleware(ExceptionsFromHandlers(bot))
@@ -43,7 +49,7 @@ async def main():
     # async with async_session() as session:
     #     await everyday_check_to_msg(session,bot)
     scheduler = AsyncIOScheduler(timezone="Asia/Krasnoyarsk")
-    await notification(bot, scheduler)
+    await notification(bot, scheduler, admin_bot)
     scheduler.start()
     print(datetime.now(), " Включение роутеров ")
     dp.include_router(common_router)

@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     token_bot: str
     api_key: str
     time_check_tasks:datetime.time
+    bot_admin: str
+    tg_admin: str
     hello_msg:str
     run_exe:bool
     base_dir: Path|None = BASE_DIR
