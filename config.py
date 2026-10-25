@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     tg_admin: str
     hello_msg:str
     run_exe:bool
+    proxy_ws_url:str
     base_dir: Path|None = BASE_DIR
     model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
     @model_validator(mode='after')

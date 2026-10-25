@@ -17,6 +17,8 @@ import threading
 from pystray import Icon, Menu, MenuItem
 from PIL import Image
 import ctypes
+import tgwsapiproxy
+from aiogram.client.session.aiohttp import AiohttpSession
 
 async def run_check_task(bot:Bot, admin_bot:Bot):
     async with async_session() as session:
@@ -39,15 +41,16 @@ async def main():
     print(datetime.now(), " Инициализация БД ")
     await init_db()
     print(datetime.now()," Инициализация бота ")
-    bot=Bot(token=config.token_bot)
+    proxy_task = asyncio.create_task(tgwsapiproxy.run_proxy(config.proxy_ws_url))
+    await asyncio.sleep(5.0)
+    session = AiohttpSession(proxy=tgwsapiproxy.proxy_url())
+    bot=Bot(token=config.token_bot, session=session)
     dp=Dispatcher()
-    admin_bot=Bot(token=config.bot_admin)
+    admin_bot=Bot(token=config.bot_admin, session=session)
     print(datetime.now()," Подключение мидлвеаров ")
     dp.update.middleware(DbSessionMiddleware(session_pool=async_session))
     dp.update.middleware(ExceptionsFromHandlers(bot))
     print(datetime.now(), " Включение планировщика заданий ")
-    # async with async_session() as session:
-    #     await everyday_check_to_msg(session,bot)
     scheduler = AsyncIOScheduler(timezone="Asia/Krasnoyarsk")
     await notification(bot, scheduler, admin_bot)
     scheduler.start()
@@ -65,6 +68,7 @@ async def main():
             scheduler.shutdown()
         await bot.session.close()
         await dvijok.dispose()
+        proxy_task.cancel()
 
 """Ниже код для запуска из под exe в windows"""
 kernel32 = ctypes.windll.kernel32
