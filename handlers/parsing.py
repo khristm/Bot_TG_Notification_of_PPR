@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from parsing_data.parsing import ModifyUrl, ReadCVSToObject, RequestToGoogle
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.crud import create_schedule_from_list
-from datetime import datetime
+from loguru import logger
 
 
 
@@ -19,7 +19,7 @@ router=Router()
 async def get_month_for_parsing(callback:CallbackQuery,state:FSMContext):
     """Первый хэндлер для добавления графика, вызывает клавиатуру где динамически формируются 4 месяца - текущий и 3 следующих"""
     # await callback.message.delete()
-    print(f"{datetime.now()} Хэндлер начала парсинга графика ппр, пользователь: {callback.from_user.id}")
+    logger.debug(f"Хэндлер начала парсинга графика ппр, пользователь: {callback.from_user.id}")
     await state.set_state(ParsingState.waiting_month)
     await callback.message.edit_text(text="Укажи месяц на который добавляем график:", reply_markup=await get_date_schedule())
 
@@ -27,10 +27,9 @@ async def get_month_for_parsing(callback:CallbackQuery,state:FSMContext):
 @router.callback_query(MonthSchedule.filter(),ParsingState.waiting_month)
 async def enter_url(callback:CallbackQuery, callback_data:MonthSchedule, state:FSMContext):
     """Событие нажатия кнопки в клавиатуре с динамическими кнопками с месяцами"""
-    print(f"{datetime.now()} Хэндлер парсинга, выбран месяц, пользователь: {callback.from_user.id}")
+    logger.debug(f"Хэндлер парсинга, выбран месяц, пользователь: {callback.from_user.id}")
     month=callback_data.month
     await state.set_state(ParsingState.waiting_url)
-    # await callback.message.delete()
     sent_msg = await callback.message.edit_text(f"Ты выбрал месяц: {month}, теперь введи URL таблицы и отправь",
                                   reply_markup=await cancel_keyboard())
     await state.update_data(id_msg=sent_msg.message_id, date=month)
@@ -38,11 +37,10 @@ async def enter_url(callback:CallbackQuery, callback_data:MonthSchedule, state:F
 @router.message(F.text,ParsingState.waiting_url)
 async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
     """Хэндлер на перехват ссылки юзера здесь будем начинать парсинг"""
-    print(f"{datetime.now()} Хэндлер парсинга юзер ввел URL таблицы, пользователь: {message.from_user.id}")
+    logger.debug(f"Хэндлер парсинга юзер ввел URL таблицы, пользователь: {message.from_user.id}")
     data=await state.get_data()
     month=data.get("date")
     id_msg=data.get("id_msg")#достаем данные из FSM
-    #await message.bot.delete_message(message.chat.id,id_msg)
     await message.delete()
     user_url=ModifyUrl(message.text)#используем мой класс для модификации ссылки user_url теперь объект с атрибутами
     async with aiohttp.ClientSession() as httpsession:
@@ -83,13 +81,13 @@ async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
             return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
                                                        text="Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
                                         reply_markup=await exit_to_menu_keyboard())
-        print(f"{datetime.now()} Хэндлер парсинга графика ппр, данные добавлены")
+        logger.debug(f"Хэндлер парсинга графика ппр, данные добавлены")
         return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
                                                    text="Данные добавлены", reply_markup=await exit_to_menu_keyboard())
 
 @router.callback_query(ParsingState.waiting_gid)#в создании клавиатуры выставляем стадию ожидания листа гугл таблицы здесь ловим эту стадию
 async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
-    print(f"{datetime.now()} Хэндлер парсинга графика ппр, получен список листов гугл таблицы и выбран пользователем")
+    logger.debug(f"Хэндлер парсинга графика ппр, получен список листов гугл таблицы и выбран пользователем")
     data = await state.get_data()
     month=data.get("date")
     gid_list=data.get("gid_list")
@@ -112,7 +110,7 @@ async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMConte
         if not await create_schedule_from_list(session,read_cvs.list_object,callback.from_user.id):
             return await callback.message.edit_text("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
                                         reply_markup=await exit_to_menu_keyboard())
-        print(f"{datetime.now()} Хэндлер парсинга графика ппр, данные добавлены")
+        logger.debug(f"Хэндлер парсинга графика ппр, данные добавлены")
         return await callback.message.edit_text("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
 
 

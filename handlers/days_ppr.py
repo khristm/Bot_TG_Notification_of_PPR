@@ -4,13 +4,14 @@ from aiogram.types import CallbackQuery
 from keybords.common import first_3_day_keyboard
 from keybords.parsing import exit_to_menu_keyboard, get_date_schedule
 from utils import StateForDaysPPR, get_days_ppr, MonthSchedule
-from datetime import datetime
+from loguru import logger
+
 
 router=Router()
 
 @router.callback_query(F.data=="get_days_ppr")
 async def get_days(callback:CallbackQuery, state:FSMContext):
-    print(f"{datetime.now()} Хэндлер подсчета доступных дней ппр, пользователь: {callback.from_user.id}")
+    logger.debug(f"Хэндлер подсчета доступных дней ппр, пользователь: {callback.from_user.id}")
     await state.set_state(StateForDaysPPR.waiting_month)
     return await callback.message.edit_text(text="Выбери месяц на который нужны дни для ППР: ",reply_markup=await get_date_schedule())
 

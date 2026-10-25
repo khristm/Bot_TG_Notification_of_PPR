@@ -6,15 +6,14 @@ from keybords.common import month_user_keyboard
 from keybords.parsing import exit_to_menu_keyboard
 from utils import ParsingState
 from database.crud import get_months, delete_task_in_month
-from datetime import datetime
+from loguru import logger
 
 router=Router()
 
 @router.callback_query(F.data=="delete_schedule",F.message.chat.type == "private")
 async def delete_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
-    print(f"{datetime.now()} Хэндлер удаления графика ППР, пользователь: {callback.from_user.id}")
+    logger.debug(f"Хэндлер удаления графика ППР, пользователь: {callback.from_user.id}")
     await callback.answer()
-    # await callback.message.delete()
     res = await get_months(session, int(callback.from_user.id))
     if not res:
         return await callback.message.edit_text("У тебя нет добавленных записей ППР", reply_markup=await exit_to_menu_keyboard())
@@ -26,7 +25,6 @@ async def delete_schedule(callback:CallbackQuery, session:AsyncSession, state:FS
 @router.callback_query(ParsingState.waiting_month_for_delete)
 async def delete_month(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
     await callback.answer()
-    # await callback.message.delete()
     month = callback.data
     res =await delete_task_in_month(session,month,callback.from_user.id)
     await state.clear()

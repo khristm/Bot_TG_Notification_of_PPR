@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import calendar
 from database.crud import create_schedule_from_list
 from database.database import async_session
+from loguru import logger
 
 class ModifyUrl:
     """Класс для работы со ссылкой абонента"""
@@ -23,7 +24,7 @@ class ModifyUrl:
         """Проверяем наличие gid= в ссылке, если есть формируем готовую ссылку для запроса cvs"""
         if 'gid=' in self.url_user:
             self.url_with_gid = self.url_user.replace('edit?', 'export?format=csv&')
-            print(f"url_with_gid: {self.url_with_gid}")
+            logger.debug(f"url_with_gid: {self.url_with_gid}")
             return self
         else:
             return None
@@ -35,7 +36,8 @@ class ModifyUrl:
                 self.__check_gid()
             else:
                 self.errors = True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Ошибка при парсинге url: {e}")
             self.errors=True
     def __get_id_sheet(self):
         """Выдергиваем значение id гугл таблицы из ссылки абонента"""
@@ -48,7 +50,7 @@ class ModifyUrl:
         return self
     def create_url_with_gid(self,gid):
         self.url_with_gid="https://docs.google.com/spreadsheets/d/"+self.id_sheet+"/export?format=csv&"+gid
-        print(f"Ссылка на скачивание cvs {self.url_with_gid}")
+        logger.debug(f"Ссылка на скачивание cvs {self.url_with_gid}")
         return self
 
 class RequestToGoogle:
@@ -64,7 +66,8 @@ class RequestToGoogle:
                 data = await response.read()
                 return data
         except Exception as e:
-            print(f"Ошибка сетевого запроса: {e}")
+            logger.exception(e)
+            logger.error(f"Ошибка сетевого запроса к гуглу на скачивание cvs: {e}")
             return None
     async def get_gid(self):
         """Запрос на получение списка листов из таблицы если ссылка без указания на лист"""
@@ -82,7 +85,8 @@ class RequestToGoogle:
                 else:
                     return []
         except Exception as e:
-            print(f"Ошибка сетевого запроса: {e}")
+            logger.exception(e)
+            logger.error(f"Ошибка сетевого запроса на получение списка листов таблицы: {e}")
             return []
 
 class ReadCVSToObject:
@@ -100,7 +104,7 @@ class ReadCVSToObject:
            data=data.replace({pandas.NA: None, float('nan'): None})#пытаемся проглотить пустые ячейки из таблицы
            data_dict=data.to_dict(orient="records")
         except Exception as e:
-            print(f"Не смогли прочитать cvs с ошибкой: {e}")
+            logger.error(f"Не смогли прочитать cvs с ошибкой: {e}")
             self.errors=True
             return None
         self.list_dicts=data_dict
@@ -109,21 +113,24 @@ class ReadCVSToObject:
         """Конвертация словаря в объекты класса унаследованного от BaseModel"""
         """Сначала меняем ключи в словаре на имена атрибутов конечного класса"""
         new_list=[]
+        logger.debug(f"таблица из пандас: \n{self.list_dicts}")
         try:
             for el in self.list_dicts:
-                new_dict = {}
                 # имена столбцов должны строго соответствовать структуре, данные нужны точно полные
                 # поэтому при любом несовпадении прервемся с ошибкой поэтому не метод .get()
-                new_dict["number"]=el["№ задания"]
-                new_dict["adress"] = el["Адрес"]
-                new_dict["month"]=self.month
-                new_dict["date_time"]=el["Дата и время"]
-                new_dict["workers"]=el["Исполнители"]
-                new_dict["type"]=el["Тип работ"]
+                new_dict = {
+                    "number":el["№ задания"],
+                    "adress" : el["Адрес"],
+                    "month" : self.month,
+                    "date_time" : el["Дата и время"],
+                    "workers":el["Исполнители"],
+                    "type":el["Тип работ"]
+                }
                 new_list.append(new_dict)
             self.list_dicts=new_list
         except Exception as e:
-            print(f"Ошибка на этапе перебора значений из гугл таблицы, не верные названия столбцов, ошибка: {e}")
+            logger.exception(e)
+            logger.error(f"Ошибка на этапе перебора значений из гугл таблицы, не верные названия столбцов, ошибка: {e}")
             self.errors=True
             return None
         """Перед преобразованием проверим значения ключа date_time что конвертируются в объекты datetime
@@ -132,7 +139,7 @@ class ReadCVSToObject:
             #параметр month планирую получать в формате 2026-01
             self.month=datetime.strptime(self.month.strip(),"%Y-%m")
         except Exception as e:
-            print(f"Месяц пришел не в верном формате, ошибка: {e}")
+            logger.error(f"Месяц пришел не в верном формате, ошибка: {e}")
             self.errors = True
             return None
         #проверка полей даты ппр на соотвествие формату даты
@@ -140,7 +147,8 @@ class ReadCVSToObject:
             for el in self.list_dicts:
                 el["date_time"]=datetime.strptime(el["date_time"],"%d.%m.%Y %H:%M:%S")
         except Exception as e:
-            print(f"Даты ППР пришли из гугл таблиц не в верном формате, ошибка: {e}")
+            logger.exception(e)
+            logger.error(f"Даты ППР пришли из гугл таблиц не в верном формате, ошибка: {e}")
             self.errors = True
             return None
         #проверка что ппр проводятся в указанном пользователем месяце
@@ -151,7 +159,7 @@ class ReadCVSToObject:
                 if el["date_time"] > end_month or el["date_time"]<self.month:
                     raise ValueError(f"{el["date_time"]} не в пределах указанного месяца {self.month}")
         except Exception as e:
-            print(f"Даты ППР не в указанном месяце, ошибка: {e}")
+            logger.debug(f"Даты ППР не в указанном месяце, ошибка: {e}")
             self.errors = True
             return None
         #создаем объекты и добавляем в список
@@ -160,7 +168,8 @@ class ReadCVSToObject:
                 obj=TaskSchema(**el)
                 self.list_object.append(obj)
         except Exception as e:
-            print(f"Ошибка в создании объекта при парсинге: {e}")
+            logger.exception(e)
+            logger.error(f"Ошибка в создании объекта при парсинге: {e}")
             self.errors = True
         return self
 

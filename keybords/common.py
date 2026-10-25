@@ -1,6 +1,5 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
-
 from utils import get_3_days
 
 

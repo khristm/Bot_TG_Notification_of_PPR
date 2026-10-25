@@ -7,14 +7,14 @@ from keybords.parsing import exit_to_menu_keyboard
 from utils import ParsingState
 from database.crud import get_months, get_task_in_month
 from datetime import datetime
+from loguru import logger
 
 router=Router()
 
 @router.callback_query(F.data=="view_schedule",F.message.chat.type == "private")
 async def view_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
-    print(f"{datetime.now()} Хэндлер просмотра графика ППР, пользователь: {callback.from_user.id}")
+    logger.debug(f"Хэндлер просмотра графика ППР, пользователь: {callback.from_user.id}")
     await callback.answer()
-    # await callback.message.delete()
     res = await get_months(session, int(callback.from_user.id))
     if not res:
         return await callback.message.edit_text("У тебя нет добавленных записей ППР",reply_markup=await exit_to_menu_keyboard())
@@ -27,7 +27,6 @@ async def view_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMC
 @router.callback_query(ParsingState.waiting_month)
 async def get_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
     await callback.answer()
-    # await callback.message.delete()
     month=callback.data
     list_task=await get_task_in_month(session, month, callback.from_user.id)
     await state.clear()
@@ -45,7 +44,7 @@ async def get_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMCo
             if task.workers is None: workers=""
             else: workers=task.workers
             task_from_db=(f"--------------\n"
-                        f"<i>№ здания:</i> <b>{number}</b>\n"
+                        f"<i>№ задания:</i> <b>{number}</b>\n"
                         f"<i>Дата:</i> <b>{task.date_time}</b>\n"
                         f"<i>Адрес:</i> <b>{adress}</b>\n"
                         f"<i>Вид работ:</i> <b>{type_task}</b>\n"
