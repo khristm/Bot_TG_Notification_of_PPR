@@ -12,9 +12,16 @@ class Task(Base):
     __tablename__ = 'tasks'
     id = Column(Integer, unique=True, autoincrement=True,primary_key=True)
     user_id= Column(Integer, ForeignKey('users.id'))
-    adress=Column(String)
+    address=Column(String)
     month=Column(String)
     date_time=Column(String)
     number=Column(Integer)
     workers=Column(String)
     type=Column(String)
+
+class Workers(Base):
+    __tablename__ = 'workers'
+    id = Column(Integer, unique=True, autoincrement=True, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    name = Column(String)
+    nickname = Column(String)

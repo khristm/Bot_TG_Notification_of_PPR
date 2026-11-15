@@ -4,14 +4,13 @@ from aiogram.types import Message, CallbackQuery
 from keybords.parsing import get_date_schedule, cancel_keyboard, exit_to_menu_keyboard, get_gid_keyboard
 from utils import MonthSchedule, ParsingState
 from aiogram.fsm.context import FSMContext
-from parsing_data.parsing import ModifyUrl, ReadCVSToObject, RequestToGoogle
+from parsing_data.csv_parsing import ModifyUrl, RequestToGoogle
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.crud import create_schedule_from_list
 from loguru import logger
-
-
+from parsing_data import parsing_tasks_in_handler
 
 router=Router()
+
 
 
 
@@ -69,21 +68,7 @@ async def parsing_url(message:Message, session:AsyncSession, state:FSMContext):
             return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
                                                        text="Ошибка запроса на скачивание данных с гугл таблицы, проверь открыт ли доступ к ней",
                                             reply_markup=await exit_to_menu_keyboard())
-        data=ReadCVSToObject(res,month)#мой класс для чтения cvs в список объектов пидантик
-        if data.errors:#атрибут ошибки в истину встает когда что-то пошло не так
-            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
-                                                       text="Ошибка парсинга гугл таблицы, проверь ее структуру и название столбцов",
-                                        reply_markup=await exit_to_menu_keyboard())
-        if not await create_schedule_from_list(session,data.list_object,message.from_user.id):
-            #круд операция на запись объектов в бд, из объекта класса чтения cvs ,берем атрибут .list_object там список объектов
-            #и месяц выбранный пользователем на инлайн клавиатуре
-            #если запись удачна круд оперция вернет истина, ниже обрабатываем ложь
-            return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
-                                                       text="Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
-                                        reply_markup=await exit_to_menu_keyboard())
-        logger.debug(f"Хэндлер парсинга графика ппр, данные добавлены")
-        return await message.bot.edit_message_text(chat_id=message.chat.id,message_id=id_msg,
-                                                   text="Данные добавлены", reply_markup=await exit_to_menu_keyboard())
+    return await parsing_tasks_in_handler(message, res, month, session, id_msg=id_msg)
 
 @router.callback_query(ParsingState.waiting_gid)#в создании клавиатуры выставляем стадию ожидания листа гугл таблицы здесь ловим эту стадию
 async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMContext):
@@ -96,22 +81,17 @@ async def enter_gid(callback:CallbackQuery, session:AsyncSession, state:FSMConte
     user_url=ModifyUrl(url)#снова создаем объект с введеным пользователем адресом
     user_url.create_url_with_gid(gid_list[int(gid_user_index)]['gid'])
     # вызываем метод ручного создания ссылку на таблицу с конретным листом обрщаемся к списку листов выбранным пользователем индексом
-    # await callback.message.delete()
     async with aiohttp.ClientSession() as httpsession:
         request = RequestToGoogle(url_user=user_url.url_with_gid,session_obj=httpsession,sheet_id=None)
         # аналогичное скачивание с готовой ссылкой на cvs
-        cvs_data = await request.get_cvs()
-        read_cvs = ReadCVSToObject(cvs_data,month)
-        if read_cvs.errors:
-            return await callback.message.edit_text("Ошибка парсинга гугл таблицы,"
-                                                 " проверь ее структуру, название столбцов,"
-                                                 " возможно не совпадает указанный месяц и даты в таблице",
-                                        reply_markup=await exit_to_menu_keyboard())
-        if not await create_schedule_from_list(session,read_cvs.list_object,callback.from_user.id):
-            return await callback.message.edit_text("Ошибка записи в БД, проверь возможно уже есть график на этот месяц",
-                                        reply_markup=await exit_to_menu_keyboard())
-        logger.debug(f"Хэндлер парсинга графика ппр, данные добавлены")
-        return await callback.message.edit_text("Данные добавлены", reply_markup=await exit_to_menu_keyboard())
+        try:
+            cvs_data = await request.get_cvs()
+        except Exception as e:
+            logger.error(f"Неуспешная попытка загрузить данные с гугл таблиц: {e}")
+            return await callback.message.edit_text(f"Ошибка при загрузке данных с гугл таблицы, "
+                                                        f"попробуйте повторить позже",
+                                                        reply_markup=await exit_to_menu_keyboard())
+    return await parsing_tasks_in_handler(callback, cvs_data, month, session)
 
 
 

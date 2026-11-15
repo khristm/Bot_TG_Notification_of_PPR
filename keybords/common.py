@@ -16,6 +16,8 @@ async def main_menu():
     builder.add(types.InlineKeyboardButton(text='Удалить график',callback_data='delete_schedule'))
     builder.add(types.InlineKeyboardButton(text="Просмотреть график", callback_data="view_schedule"))
     builder.add(types.InlineKeyboardButton(text="Сбросить привязку чата для оповещений", callback_data="reset_chat_id"))
+    builder.add(types.InlineKeyboardButton(text="Просмотр справочника исполнителей", callback_data="view_workers"))
+    builder.add(types.InlineKeyboardButton(text="Загрузить справочник исполнителей", callback_data="upload_workers"))
     builder.add(types.InlineKeyboardButton(text="Возможные для ППР дни", callback_data="get_days_ppr"))
     builder.adjust(1)
     return builder.as_markup()

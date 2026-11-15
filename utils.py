@@ -3,46 +3,98 @@ from aiogram.filters.callback_data import CallbackData
 from datetime import datetime, timedelta
 import calendar
 from aiogram.fsm.state import State, StatesGroup
-from database.crud import get_list_today_tasks
+from database.crud import get_list_today_tasks, search_workers_by_name
 from sqlalchemy.ext.asyncio import AsyncSession
-from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from loguru import logger
+import asyncio
 
+
+async def get_workers_nicknames_cache(worker_list: set, user_id: int, session: AsyncSession)->dict:
+    workers_nicknames = {}
+    workers = await search_workers_by_name(worker_list, session, user_id)
+    logger.debug(f"WORKERS FROM DB: {workers}")
+    if not workers:
+        return workers_nicknames
+    for worker in worker_list:
+        for worker_from_db in workers:
+            if worker in worker_from_db.name:
+                workers_nicknames[worker] = worker_from_db.nickname
+                break
+    return workers_nicknames
 
 async def everyday_check_to_msg(session:AsyncSession,bot):
-    list_tasks=await get_list_today_tasks(session)
-    #Результат выборки [[(<database.models.Task object at 0x0000015EFCFBA660>, 'чат ид тг'), (<database.models.Task object at 0x0000015EFD000B90>, 'чат ид тг')]]
-    for users in list_tasks:
-        if not users:
-            continue
-        msg=f'🔔В ближайшее время запланированны задания:\n'
-        chat_id=0
-        #нужно проверить что список не пустой
-        for task in users:
-            if not task:
-                continue
-            if task.Task.number is None: number_task="❌"
-            else: number_task=task.Task.number
-            if task.Task.adress is None: adress_task="❌"
-            else: adress_task=task.Task.adress
-            if task.Task.workers is None: workers="❌"
-            else: workers=task.Task.workers
-            if task.Task.type is None: type_work="❌"
-            else: type_work=task.Task.type
-            date_time=task.Task.date_time
-            chat_id=task[1]
-            result_info=(f'-------------------------\n'
-                         f' 🔹<i>Номер задания:</i><b> {number_task}</b>\n'
-                         f' 🏢<i>Адрес: </i><b>{adress_task}</b>\n'
-                         f' ⏰<i>Дата: </i><b>{date_time}</b>\n'
-                         f' 👥<i>Исполнители: </i><b>{workers}</b>\n'
-                         f' 🛠<i>Тип задачи: </i><b>{type_work}</b>\n')
-            msg=msg+result_info
-        try:
-            await bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML')
-        except (TelegramForbiddenError, TelegramBadRequest) as e:
-            logger.exception(e)
-            logger.error(f"Бот словил ошибку при попытке отправки ежедневного оповещения в чат: {chat_id}, ошибка: {e}")
+    try:
+        list_tasks=await get_list_today_tasks(session)
+        #Результат выборки [[(<database.models.Task object at 0x0000015EFCFBA660>, 'чат ид тг', 'tg_id юзера'),
+        # (<database.models.Task object at 0x0000015EFD000B90>, 'чат ид тг')]]
+        # сбор кэша никнеймов сотрудников
+        workers_in_task = {}
+        cache_nicknames = {}
+        for task in list_tasks:
+            for user_task in task:
+                user_id = user_task[2]
+                workers_str_in_task = user_task.Task.workers.split(",")
+                workers_str_in_task = [worker.strip() for worker in workers_str_in_task]
+                if workers_in_task.get(user_id):
+                    workers_in_task[user_id] += workers_str_in_task
+                else:
+                    workers_in_task[user_id] = workers_str_in_task
+        for user in workers_in_task.keys():
+            cache_nicknames[user] = await get_workers_nicknames_cache(set(workers_in_task[user]), user, session)
+        # итерация для рассылки оповещений
+        for users in list_tasks:
+            msg=f'🔔В ближайшее время запланированны задания:\n'
+            chat_id=0
+            #нужно проверить что список не пустой
+            if not users: continue
+            for task in users:
+                user_id = task[2]
+                if task.Task.number is None: number_task="❌"
+                else: number_task=task.Task.number
+                if task.Task.address is None: address_task= "❌"
+                else: address_task=task.Task.address
+                if task.Task.workers is None: str_workers_to_tg="❌"
+                else:
+                    workers=task.Task.workers
+                    workers_list = workers.split(",")
+                    str_workers_to_tg = ""
+                    for worker in workers_list:
+                        if cache_nicknames.get(user_id) is None:
+                            str_workers_to_tg = workers
+                            break
+                        str_workers_to_tg += f"{worker} {cache_nicknames[user_id].get(worker.strip())}, " \
+                            if cache_nicknames[user_id].get(worker.strip()) else f"{worker}, "
+                    str_workers_to_tg = str_workers_to_tg.rstrip(", ")
+                if task.Task.type is None: type_work="❌"
+                else: type_work=task.Task.type
+                date_time=task.Task.date_time
+                chat_id=task[1]
+                result_info=(f'-------------------------\n'
+                             f' 🔹<i>Номер задания:</i><b> {number_task}</b>\n'
+                             f' 🏢<i>Адрес: </i><b>{address_task}</b>\n'
+                             f' ⏰<i>Дата: </i><b>{date_time}</b>\n'
+                             f' 👥<i>Исполнители: </i><b>{str_workers_to_tg}</b>\n'
+                             f' 🛠<i>Тип задачи: </i><b>{type_work}</b>\n')
+                msg=msg+result_info
+            retry = 3
+            i = 1
+            while True:
+                try:
+                    await bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML')
+                    break
+                except Exception as e:
+                    logger.error(f"Бот словил ошибку при попытке отправки ежедневного оповещения в чат: {chat_id},"
+                                 f" попытка: {i}"
+                                 f" ошибка: {e}")
+                    if i == retry:
+                        logger.exception(e)
+                        break
+                    i += 1
+                    await asyncio.sleep(3)
+    except Exception as e:
+        logger.exception(e)
+        return False
+    return True
 
 
 class MonthSchedule(CallbackData, prefix='MonthSchedule'):
@@ -53,6 +105,8 @@ class ParsingState(StatesGroup):
     """Класс для изменения стадий парсинга и передачи между ними данных"""
     waiting_url=State()
     waiting_gid=State()
+    waiting_url_workers = State()
+    waiting_gid_workers = State()
     waiting_month=State()
     waiting_month_for_delete=State()
 

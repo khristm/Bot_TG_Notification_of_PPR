@@ -25,11 +25,15 @@ class Settings(BaseSettings):
     bot_admin: str
     tg_admin: str
     hello_msg:str
-    proxy_ws_url:str
+    proxy_ws_url:str|None = None
     path_log: Path = "work_log.log"
     log_level: str = "INFO"
     base_dir: Path|None = BASE_DIR
     model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
+    # настройки ИИ
+    ai_token: str|None = None
+    ai_api_url: str|None = None
+    ai_model: str|None = None
     @model_validator(mode='after')
     def config_path(self):
         if not self.db_path.is_absolute():

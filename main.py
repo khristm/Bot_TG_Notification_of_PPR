@@ -5,10 +5,11 @@ from config import config, custom_log, set_logger_config
 from database.init_db import init_db
 from middleware import DbSessionMiddleware, ExceptionsFromHandlers
 from handlers.common import router as common_router
-from handlers.parsing import router as parsing_router
-from handlers.read import router as read_router
+from handlers.parsing_tasks import router as parsing_router
+from handlers.view_tasks import router as read_router
+from handlers.workers import router as workers_router
 from database.database import dvijok
-from handlers.delete import router as delete_router
+from handlers.delete_tasks import router as delete_router
 from handlers.days_ppr import router as days_ppr_router
 from utils import everyday_check_to_msg
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -19,11 +20,26 @@ from loguru import logger
 async def run_check_task(bot:Bot, admin_bot:Bot):
     async with async_session() as session:
         logger.info(" Запуск проверки актуальных заданий по расписанию")
-        await everyday_check_to_msg(session, bot)
-        try:
-            await admin_bot.send_message(config.tg_admin,"Кузьма работает, выполнил рассылку уведомлений если они были")
-        except Exception as e:
-            logger.error(f"Ошибка отправки уведомления админу: {e}")
+        result = await everyday_check_to_msg(session, bot)
+        if result:
+            text = "Кузьма работает, попытался выполнить рассылку уведомлений если они были"
+        else:
+            text = "Кузьма работает, но при проверке заданий на сутки вылетел с ошибкой"
+        retry = 3
+        i = 1
+        while True:
+            try:
+                await admin_bot.send_message(config.tg_admin,text)
+                break
+            except Exception as e:
+                logger.error(f"Ошибка отправки уведомления админу: {e}, попытка: {i}")
+                if retry == i:
+                    logger.exception(e)
+                    break
+                i += 1
+                await asyncio.sleep(3)
+
+
 
 
 def notification(bot:Bot, scheduler:AsyncIOScheduler, admin_bot:Bot):
@@ -36,8 +52,12 @@ def notification(bot:Bot, scheduler:AsyncIOScheduler, admin_bot:Bot):
 async def main():
     logger.info("Инициализация БД")
     await init_db()
-    logger.info("Включение прокси")
-    proxy_task = asyncio.create_task(tgwsapiproxy.run_proxy(config.proxy_ws_url))
+    if config.proxy_ws_url:
+        logger.info("Включение прокси")
+        proxy_task = asyncio.create_task(tgwsapiproxy.run_proxy(config.proxy_ws_url))
+    else:
+        logger.info("Прокси не указан в переменной окружения, запуск в обычном режиме")
+        proxy_task = None
     await asyncio.sleep(20.0)
     logger.info("Инициализация бота ")
     session = AiohttpSession(proxy=tgwsapiproxy.proxy_url())
@@ -57,6 +77,7 @@ async def main():
     dp.include_router(read_router)
     dp.include_router(delete_router)
     dp.include_router(days_ppr_router)
+    dp.include_router(workers_router)
     try:
         logger.info("Включение поллинга ")
         while True:
@@ -68,12 +89,13 @@ async def main():
             else:
                 break
     finally:
-        proxy_task.cancel()
-        try:
-            await proxy_task
-        except asyncio.CancelledError:
-            logger.info("Прокси остановлен")
-            pass
+        if proxy_task:
+            proxy_task.cancel()
+            try:
+                await proxy_task
+            except asyncio.CancelledError:
+                logger.info("Прокси остановлен")
+                pass
         if scheduler.running:
             scheduler.shutdown()
         await bot.session.close()
@@ -91,6 +113,6 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info(" Отключено пользователем ")
+        logger.info("Отключено пользователем ")
     except Exception as ex:
         logger.error(f"Остановка программы с ошибкой: {ex}")

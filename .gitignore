@@ -1,13 +1,13 @@
 .env
 /.venv
-*.db
-*.db-journal
 /.idea
 **/__pycache__/
 *.spec
 *.png
 /build
 /dist
+*.db
+*.db-wal
 *.db-shm
-*.db_wal
+*.db-journal
 *.log

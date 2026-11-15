@@ -4,9 +4,8 @@ from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 from keybords.common import month_user_keyboard
 from keybords.parsing import exit_to_menu_keyboard
-from utils import ParsingState
+from utils import ParsingState, get_workers_nicknames_cache
 from database.crud import get_months, get_task_in_month
-from datetime import datetime
 from loguru import logger
 
 router=Router()
@@ -33,20 +32,35 @@ async def get_schedule(callback:CallbackQuery, session:AsyncSession, state:FSMCo
     if not list_task:
         return await callback.message.edit_text("Не нашли у тебя графиков ППР",reply_markup=await exit_to_menu_keyboard())
     else:
+        workers_list = []
+        for task in list_task:
+            workers_list += task.workers.split(',')
+        workers_list = [worker.strip() for worker in workers_list]
+        logger.debug(f"WORKERS: {workers_list}")
+        cache_nicknames = await get_workers_nicknames_cache(set(workers_list),
+                                                            session=session,
+                                                            user_id=callback.from_user.id)
+        logger.debug(f"CACHE_NICKNAMES: {cache_nicknames}")
         task_msg="Cписок работ на выбранный месяц:\n"
         for task in list_task:
             if task.number is None: number=""
             else: number=task.number
-            if task.adress is None: adress=""
-            else: adress=task.adress
+            if task.address is None: address= ""
+            else: address=task.address
             if task.type is None: type_task=""
             else: type_task=task.type
             if task.workers is None: workers=""
-            else: workers=task.workers
+            else:
+                workers = ""
+                workers_list = task.workers.split(",")
+                for worker in workers_list:
+                    workers += f"{worker} {cache_nicknames.get(worker.strip())}, " \
+                        if cache_nicknames.get(worker.strip()) else f"{worker}, "
+                workers = workers.rstrip(", ")
             task_from_db=(f"--------------\n"
                         f"<i>№ задания:</i> <b>{number}</b>\n"
                         f"<i>Дата:</i> <b>{task.date_time}</b>\n"
-                        f"<i>Адрес:</i> <b>{adress}</b>\n"
+                        f"<i>Адрес:</i> <b>{address}</b>\n"
                         f"<i>Вид работ:</i> <b>{type_task}</b>\n"
                         f"<i>Исполнители: </i><b>{workers}</b>\n")
             task_msg+=task_from_db

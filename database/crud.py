@@ -1,7 +1,7 @@
-from sqlalchemy import select, delete
-from schemas import UserSchema, TaskSchema
+from sqlalchemy import select, delete, or_, Sequence
+from schemas import UserSchema, TaskSchema, WorkersSchema
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.models import User, Task
+from database.models import User, Task, Workers
 from typing import List
 from datetime import datetime, timedelta
 from loguru import logger
@@ -44,8 +44,8 @@ async def create_schedule(session:AsyncSession,user_task:TaskSchema,tg_id):
     task = res.scalar_one_or_none()
     if task is not None:
         return False
-    task=Task(user_id=user.id,adress=user_task.adress,month=user_task.month,date_time=str(user_task.date_time),
-              number=user_task.number,workers=user_task.workers,type=user_task.type)
+    task=Task(user_id=user.id, address=user_task.address, month=user_task.month, date_time=str(user_task.date_time),
+              number=user_task.number, workers=user_task.workers, type=user_task.type)
     session.add(task)
     await session.commit()
     return True
@@ -67,8 +67,8 @@ async def create_schedule_from_list(session:AsyncSession,user_task_list:List[Tas
         return False
         #записи этого месяца уже есть, нужно сначала их удалить чтоб не допустить битой информации
     logger.debug("Проверили данные из бд на дублирование")
-    task_list=[Task(user_id=user.id,adress=el.adress,month=el.month,date_time=str(el.date_time),
-              number=el.number,workers=el.workers,type=el.type) for el in user_task_list]
+    task_list=[Task(user_id=user.id, address=el.address, month=el.month, date_time=str(el.date_time),
+                    number=el.number, workers=el.workers, type=el.type) for el in user_task_list]
     session.add_all(task_list)
     await session.commit()
     return True
@@ -115,7 +115,8 @@ async def delete_task_in_month(session, month,tg_id):
 
 async def get_tasks_today(session:AsyncSession,user:User,date_check, date_now):
     """Функция запроса задач из БД, для ежедневного бота оповещателя """
-    res = await session.execute(select(Task,User.chat_id).join(User, Task.user_id == User.id).
+    res = await session.execute(select(Task,User.chat_id, User.tg_id).
+                                join(User, Task.user_id == User.id).
                                 where(Task.date_time>date_now,
                                       Task.date_time<date_check,Task.user_id==user.id).order_by(Task.date_time))
     return res.all()
@@ -130,7 +131,7 @@ async def get_list_today_tasks(session:AsyncSession):
     """Запрос актуальных задач, для пользователей с указанным chat_id"""
     user_list = await get_all_user(session)
     date_now = datetime.now()
-    date_check = date_now + timedelta(hours=23)
+    date_check = date_now + timedelta(hours=24)
     task_list = []
     for user in user_list:
         res = await get_tasks_today(session, user, date_check, date_now)
@@ -144,3 +145,40 @@ async def delete_chat_id(session:AsyncSession,tg_id):
     user.chat_id=None
     await session.commit()
     return True
+
+async def insert_workers(session: AsyncSession, tg_id, workers:list[WorkersSchema]):
+    """Полная перезапись списка исполнителей"""
+    user = await get_user(session,tg_id)
+    if user is None:
+        return False
+    user_id = user.id
+    worker_list = []
+    try:
+        await session.execute(delete(Workers).where(Workers.user_id==user_id))
+        for worker in workers:
+            worker_list.append(Workers(user_id=user_id, nickname=worker.nickname, name=worker.name))
+        session.add_all(worker_list)
+        await session.commit()
+    except Exception as e:
+        logger.error(f"Ошибка при добавлении в БД списка исполнителей: {e}")
+        return False
+    return True
+
+async def get_all_workers(session:AsyncSession, tg_id) -> Sequence[Workers]:
+    workers = await session.execute(select(Workers)
+                                    .join(User, Workers.user_id == User.id)
+                                    .where(User.tg_id==tg_id))
+    return workers.scalars().all()
+
+async def search_workers_by_name(names_workers: set, session: AsyncSession, tg_id:int) -> Sequence[Workers]:
+    if not names_workers:
+        return []
+    conditions = [
+        (Workers.name.ilike(f"%{worker}%"))
+        for worker in names_workers
+                ]
+    query = (select(Workers)
+             .join(User, Workers.user_id == User.id)
+             .where(User.tg_id == tg_id, or_(*conditions)))
+    result = await session.execute(query)
+    return result.scalars().all()

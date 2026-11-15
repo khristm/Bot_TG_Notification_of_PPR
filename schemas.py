@@ -6,12 +6,24 @@ class UserSchema(BaseModel):
     chat_id: int|None=None
     phone_number: str|None=None
 
+class AIParsingTaskSchema(BaseModel):
+    address: str
+    month: str
+    date_time: datetime
+    number: int
+    workers: str
+    type: str
+
 class TaskSchema(BaseModel):
-    adress:str|None
+    address: str | None
     month:str|None
     date_time:datetime
     number:int|None
     workers:str|None
     type:str|None
+
+class WorkersSchema(BaseModel):
+    name: str
+    nickname: str
 
 

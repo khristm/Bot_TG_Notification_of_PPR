@@ -21,9 +21,10 @@ async def get_main_menu(callback:CallbackQuery, state:FSMContext):
     await callback.message.edit_text("Выбери пункт меню:",reply_markup=await main_menu())
 
 @router.message(Command("start"),F.chat.type=="private")
-async def handler_start(message: Message):
+async def handler_start(message: Message, state:FSMContext):
     """Хенделер первого запуска бота, инструкция и следом клава с кнопкой регистрации"""
     logger.debug("Хэндлер кнопки старт")
+    await state.clear()
     await message.answer(config.hello_msg)
     await message.answer(text="Нажми на кнопку регистрации",reply_markup=await registration_keyboard())
 
